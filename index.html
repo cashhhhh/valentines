@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hailey 💘</title>
+  <style>
+    :root { --bg1:#ffdee9; --bg2:#b5fffc; --card:#ffffffcc; --text:#1f1f1f; }
+    * { box-sizing: border-box; }
+    body{
+      margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+    .card{
+      width:min(680px, 92vw);
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      border: 1px solid #ffffff80;
+      border-radius: 24px;
+      padding: 28px 22px;
+      text-align:center;
+      box-shadow: 0 18px 50px rgba(0,0,0,.12);
+      position: relative;
+    }
+    h1{ margin: 0 0 8px; font-size: clamp(26px, 4vw, 40px); }
+    p{ margin: 0 0 18px; font-size: clamp(16px, 2.2vw, 18px); opacity:.9; }
+    .hearts{
+      font-size: 28px; letter-spacing: 6px; margin-bottom: 14px;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.08));
+      user-select:none;
+    }
+    .btn-row{
+      display:flex; gap:12px; justify-content:center; align-items:center;
+      margin-top: 14px; flex-wrap: wrap;
+    }
+    button{
+      border:0; border-radius: 999px; padding: 12px 18px;
+      font-size: 16px; font-weight: 700; cursor:pointer;
+      transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+      box-shadow: 0 10px 20px rgba(0,0,0,.12);
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active{ transform: translateY(1px) scale(.99); }
+    #yes{
+      background: linear-gradient(135deg, #ff4d6d, #ff8fa3);
+      color: white;
+    }
+    #yes:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+    #no{
+      background: #111827;
+      color: white;
+      position: relative;
+      touch-action: manipulation;
+    }
+    .modal{
+      position: fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.45);
+      padding: 18px;
+    }
+    .modal .box{
+      width:min(520px, 94vw);
+      background:white; border-radius: 22px; padding: 22px 18px;
+      text-align:center; box-shadow: 0 18px 60px rgba(0,0,0,.25);
+    }
+    .box h2{ margin: 0 0 8px; }
+    .box p{ margin: 0 0 14px; }
+    .close{
+      background: #10b981; color:white;
+      padding: 10px 16px; border-radius: 999px; font-weight: 800;
+    }
+
+    /* Confetti */
+    .confetti{
+      position: fixed; inset:0; pointer-events:none; overflow:hidden;
+    }
+    .piece{
+      position:absolute; top:-12px; width:10px; height:16px;
+      opacity:.9; border-radius: 3px;
+      animation: fall linear forwards;
+    }
+    @keyframes fall{
+      to{ transform: translateY(110vh) rotate(720deg); }
+    }
+
+    /* Floating hearts background */
+    .float{
+      position: fixed; inset:0; pointer-events:none; overflow:hidden;
+    }
+    .float span{
+      position:absolute; bottom:-30px; font-size: 18px; opacity:.35;
+      animation: rise linear infinite;
+      filter: drop-shadow(0 10px 12px rgba(0,0,0,.10));
+      user-select:none;
+    }
+    @keyframes rise{
+      from{ transform: translateY(0) translateX(0) scale(.9); }
+      to{ transform: translateY(-120vh) translateX(30px) scale(1.2); }
+    }
+  </style>
+</head>
+<body>
+  <div class="float" id="float"></div>
+
+  <main class="card" id="card">
+    <div class="hearts" aria-hidden="true">💗 💘 💗</div>
+    <h1>Hailey, will you be my Valentine? 💌</h1>
+    <p>I have a very important question and a very correct answer.</p>
+
+    <div class="btn-row">
+      <button id="yes">Yes 💖</button>
+      <button id="no">No 🙃</button>
+    </div>
+  </main>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="box">
+      <h2>YAYYYYY 💞</h2>
+      <p>yay i love you</p>
+      <button class="close" id="close">OK ✅</button>
+    </div>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    // --- Floating background hearts ---
+    const float = document.getElementById("float");
+    const heartEmojis = ["💗","💖","💘","💕","💞","💓"];
+    for (let i = 0; i < 18; i++) {
+      const s = document.createElement("span");
+      s.textContent = heartEmojis[Math.floor(Math.random()*heartEmojis.length)];
+      s.style.left = Math.random() * 100 + "vw";
+      s.style.animationDuration = (10 + Math.random()*12) + "s";
+      s.style.animationDelay = (-Math.random()*12) + "s";
+      s.style.fontSize = (14 + Math.random()*18) + "px";
+      float.appendChild(s);
+    }
+
+    // --- Runaway "No" button logic (mobile friendly) ---
+    const noBtn = document.getElementById("no");
+    const card = document.getElementById("card");
+
+    let clickCount = 0;      // how many times they've tried to hit "No"
+    let fleeLevel = 0;       // increases only after 2 clicks
+    let lastMoveAt = 0;
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function getSpeedSettings() {
+      // Only start accelerating AFTER 2 "No" attempts.
+      if (clickCount < 2) {
+        return { cooldownMs: 120, jumps: 1 }; // still dodges on mobile, but not turbo
+      }
+      // After 2 clicks, speed ramps up quickly
+      fleeLevel++;
+      const cooldownMs = Math.max(20, 120 - fleeLevel * 12); // faster and faster (lower cooldown)
+      const jumps = Math.min(6, 1 + Math.floor(fleeLevel / 2)); // sometimes jump multiple times
+      return { cooldownMs, jumps };
+    }
+
+    function moveNoButton() {
+      const now = Date.now();
+      const { cooldownMs, jumps } = getSpeedSettings();
+
+      if (now - lastMoveAt < cooldownMs) return;
+      lastMoveAt = now;
+
+      const padding = 14;
+      const cardRect = card.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+
+      const maxX = cardRect.width - btnRect.width - padding;
+      const maxY = cardRect.height - btnRect.height - padding;
+
+      // Ensure it's positioned relative to the card so it stays inside
+      noBtn.style.position = "absolute";
+
+      // Do 1..N quick "jumps" to feel faster
+      for (let i = 0; i < jumps; i++) {
+        const x = Math.random() * maxX + padding/2;
+        const y = Math.random() * maxY + padding/2;
+
+        // schedule micro-moves so it looks like it’s speeding up
+        setTimeout(() => {
+          noBtn.style.left = clamp(x, padding/2, maxX) + "px";
+          noBtn.style.top  = clamp(y, padding/2, maxY) + "px";
+        }, i * 35);
+      }
+
+      // Small label progression
+      if (clickCount < 2) noBtn.textContent = "No 🙃";
+      else if (fleeLevel < 6) noBtn.textContent = "wait—";
+      else if (fleeLevel < 12) noBtn.textContent = "NOPE";
+      else noBtn.textContent = "pick yes 😌";
+    }
+
+    // MOBILE: run away on finger approach/press
+    noBtn.addEventListener("pointerdown", (e) => {
+      // count only when they actually try to press it
+      clickCount++;
+      e.preventDefault();
+      moveNoButton();
+    });
+
+    // DESKTOP: still dodges when hovered
+    noBtn.addEventListener("mouseenter", () => moveNoButton());
+
+    // If they somehow click it (keyboard / lucky tap), still dodge
+    noBtn.addEventListener("click", (e) => { e.preventDefault(); moveNoButton(); });
+
+    // --- YES button: modal + confetti ---
+    const yesBtn = document.getElementById("yes");
+    const modal = document.getElementById("modal");
+    const close = document.getElementById("close");
+    const confetti = document.getElementById("confetti");
+
+    function popConfetti(count = 120) {
+      confetti.innerHTML = "";
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement("div");
+        p.className = "piece";
+        p.style.left = Math.random() * 100 + "vw";
+        p.style.width = (6 + Math.random()*10) + "px";
+        p.style.height = (10 + Math.random()*16) + "px";
+        p.style.background = `hsl(${Math.random()*360}, 90%, 65%)`;
+        p.style.animationDuration = (2.2 + Math.random()*2.2) + "s";
+        p.style.animationDelay = (Math.random()*0.15) + "s";
+        confetti.appendChild(p);
+        p.addEventListener("animationend", () => p.remove());
+      }
+    }
+
+    yesBtn.addEventListener("click", () => {
+      modal.style.display = "flex";
+      popConfetti();
+    });
+
+    close.addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") modal.style.display = "none";
+    });
+  </script>
+</body>
+</html>
